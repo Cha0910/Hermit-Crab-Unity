@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: e07a61b51b45e7042934ea4a2a51a164
+guid: 9ec1e3c3b0f20f14e867bfda60e429af
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 8942515248061861861
-    second: Player_Idle (7)_0
+      213: 3767908039618233996
+    second: Player_Idle (4)_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -37,7 +37,7 @@ TextureImporter:
   maxTextureSize: 2048
   textureSettings:
     serializedVersion: 2
-    filterMode: 1
+    filterMode: 0
     aniso: 1
     mipBias: 0
     wrapU: 1
@@ -46,7 +46,7 @@ TextureImporter:
   nPOTScale: 0
   lightmap: 0
   compressionQuality: 50
-  spriteMode: 2
+  spriteMode: 1
   spriteExtrude: 1
   spriteMeshType: 1
   alignment: 0
@@ -75,7 +75,7 @@ TextureImporter:
     maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 1
+    textureCompression: 0
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -113,23 +113,23 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Player_Idle (7)_0
+      name: Player_Idle (4)_0
       rect:
         serializedVersion: 2
         x: 143
         y: 31
         width: 738
-        height: 706
+        height: 690
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 5efcd371d323a1c70800000000000000
-      internalID: 8942515248061861861
+      spriteID: c8688c7166c4a4430800000000000000
+      internalID: 3767908039618233996
       vertices: []
       indices: 
       edges: []
@@ -138,7 +138,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 
+    spriteID: 9bcc459d59e617744a1a43aff1181ca0
     internalID: 0
     vertices: []
     indices: 
@@ -148,7 +148,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Player_Idle (7)_0: 8942515248061861861
+      Player_Idle (4)_0: 3767908039618233996
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

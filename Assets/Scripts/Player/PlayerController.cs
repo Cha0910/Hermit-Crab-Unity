@@ -2,6 +2,8 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(Rigidbody2D))]
+[RequireComponent(typeof(Animator))]
+[RequireComponent(typeof(SpriteRenderer))]
 public class PlayerController : MonoBehaviour
 {
     [Header("Move Settings")]
@@ -18,13 +20,18 @@ public class PlayerController : MonoBehaviour
 
     [SerializeField] private PlayerState _state = PlayerState.Idle;
     private Rigidbody2D _rb;
+    private Animator _anim;
+    private SpriteRenderer _sr;
     private Vector2 _moveInput;
     private bool _isGrounded;
     private bool _jumpQueued;
+    private bool _facingRight = true;
 
     private void Awake()
     {
         _rb = GetComponent<Rigidbody2D>();
+        _anim = GetComponent<Animator>();
+        _sr = GetComponent<SpriteRenderer>();
     }
 
     private void FixedUpdate()
@@ -33,6 +40,8 @@ public class PlayerController : MonoBehaviour
         ApplyMovement();
         ApplyJump();
         UpdateState();
+        UpdateAnimator();
+        UpdateFlip();
     }
 
     private void ApplyMovement()
@@ -70,6 +79,32 @@ public class PlayerController : MonoBehaviour
         }
 
         _state = Mathf.Abs(_moveInput.x) > 0.01f ? PlayerState.Move : PlayerState.Idle;
+    }
+
+    private void UpdateAnimator()
+    {
+        if (_anim == null) return;
+
+        var velocity = _rb.linearVelocity;
+        _anim.SetFloat("Speed", Mathf.Abs(velocity.x));
+        _anim.SetBool("IsGrounded", _isGrounded);
+        _anim.SetFloat("VerticalVel", velocity.y);
+    }
+
+    private void UpdateFlip()
+    {
+        if (_sr == null) return;
+
+        if (_moveInput.x > 0.01f)
+        {
+            _facingRight = true;
+        }
+        else if (_moveInput.x < -0.01f)
+        {
+            _facingRight = false;
+        }
+
+        _sr.flipX = !_facingRight;
     }
 
     public void OnMove(InputAction.CallbackContext context)

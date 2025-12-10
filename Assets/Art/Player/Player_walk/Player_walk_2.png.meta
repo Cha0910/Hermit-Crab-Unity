@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 80a3b72fe5ec86d43a8c0132b1c3e805
+guid: 7b62d6bdd6a24454297cf8d5e32f5e84
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -4664618153092551197
-    second: Player_Idle (6)_0
+      213: -673071246421978068
+    second: Player_walk_2_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -37,7 +37,7 @@ TextureImporter:
   maxTextureSize: 2048
   textureSettings:
     serializedVersion: 2
-    filterMode: 1
+    filterMode: 0
     aniso: 1
     mipBias: 0
     wrapU: 1
@@ -46,7 +46,7 @@ TextureImporter:
   nPOTScale: 0
   lightmap: 0
   compressionQuality: 50
-  spriteMode: 2
+  spriteMode: 1
   spriteExtrude: 1
   spriteMeshType: 1
   alignment: 0
@@ -113,13 +113,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Player_Idle (6)_0
+      name: Player_walk_2_0
       rect:
         serializedVersion: 2
         x: 143
         y: 31
-        width: 738
-        height: 690
+        width: 722
+        height: 674
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -128,8 +128,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 3ed64140182f34fb0800000000000000
-      internalID: -4664618153092551197
+      spriteID: c241d787445c8a6f0800000000000000
+      internalID: -673071246421978068
       vertices: []
       indices: 
       edges: []
@@ -138,7 +138,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 
+    spriteID: 5e97eb03825dee720800000000000000
     internalID: 0
     vertices: []
     indices: 
@@ -148,7 +148,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Player_Idle (6)_0: -4664618153092551197
+      Player_walk_2_0: -673071246421978068
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

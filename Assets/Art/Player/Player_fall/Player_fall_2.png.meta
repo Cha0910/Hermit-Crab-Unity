@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 6ff966917dbe3934cb7c436cdf8c4a67
+guid: b5855e18f4f4d41428b0d193339f54c2
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -3830888007110002654
-    second: Player_Idle (1)_0
+      213: -3019890257582399105
+    second: palyer_fall_2_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -37,7 +37,7 @@ TextureImporter:
   maxTextureSize: 2048
   textureSettings:
     serializedVersion: 2
-    filterMode: 1
+    filterMode: 0
     aniso: 1
     mipBias: 0
     wrapU: 1
@@ -46,7 +46,7 @@ TextureImporter:
   nPOTScale: 0
   lightmap: 0
   compressionQuality: 50
-  spriteMode: 2
+  spriteMode: 1
   spriteExtrude: 1
   spriteMeshType: 1
   alignment: 0
@@ -113,13 +113,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Player_Idle (1)_0
+      name: palyer_fall_2_0
       rect:
         serializedVersion: 2
-        x: 143
-        y: 31
+        x: 127
+        y: 47
         width: 738
-        height: 674
+        height: 722
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -128,8 +128,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 22877e987a3f5dac0800000000000000
-      internalID: -3830888007110002654
+      spriteID: f7163209fc13716d0800000000000000
+      internalID: -3019890257582399105
       vertices: []
       indices: 
       edges: []
@@ -138,7 +138,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 
+    spriteID: 5e97eb03825dee720800000000000000
     internalID: 0
     vertices: []
     indices: 
@@ -148,7 +148,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      Player_Idle (1)_0: -3830888007110002654
+      palyer_fall_2_0: -3019890257582399105
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
