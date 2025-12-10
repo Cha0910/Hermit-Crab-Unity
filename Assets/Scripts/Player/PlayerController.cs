@@ -6,7 +6,9 @@ public class PlayerController : MonoBehaviour
 {
     [Header("Move Settings")]
     [SerializeField] private float moveSpeed = 5f;
-    
+    [Header("Jump Settings")]
+    [SerializeField] private float jumpForce = 8f;
+
     [Header("Ground Check")]
     [SerializeField] private Transform groundCheck;
     [SerializeField] private float groundCheckRadius = 0.2f;
@@ -18,6 +20,7 @@ public class PlayerController : MonoBehaviour
     private Rigidbody2D _rb;
     private Vector2 _moveInput;
     private bool _isGrounded;
+    private bool _jumpQueued;
 
     private void Awake()
     {
@@ -28,6 +31,7 @@ public class PlayerController : MonoBehaviour
     {
         UpdateGrounded();
         ApplyMovement();
+        ApplyJump();
         UpdateState();
     }
 
@@ -35,6 +39,17 @@ public class PlayerController : MonoBehaviour
     {
         var velocity = _rb.linearVelocity;
         velocity.x = _moveInput.x * moveSpeed;
+        _rb.linearVelocity = velocity;
+    }
+
+    private void ApplyJump()
+    {
+        if (!_jumpQueued) return;
+        _jumpQueued = false;
+        if (!_isGrounded) return;
+
+        var velocity = _rb.linearVelocity;
+        velocity.y = jumpForce;
         _rb.linearVelocity = velocity;
     }
 
@@ -60,5 +75,11 @@ public class PlayerController : MonoBehaviour
     public void OnMove(InputAction.CallbackContext context)
     {
         _moveInput = context.ReadValue<Vector2>();
+    }
+
+    public void OnJump(InputAction.CallbackContext context)
+    {
+        if (!context.started) return;
+        _jumpQueued = true;
     }
 }
