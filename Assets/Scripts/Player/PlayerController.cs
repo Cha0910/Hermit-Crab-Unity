@@ -16,7 +16,18 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float groundCheckRadius = 0.2f;
     [SerializeField] private LayerMask groundLayer;
 
-    private enum PlayerState { Idle, Move, Jump, Fall }
+    [Header("Dash Settings")]
+    [SerializeField] private float dashSpeed = 20f;
+    [SerializeField] private float dashDuration = 0.15f;
+    [SerializeField] private float dashCooldown = 1f;
+
+    [Header("Wall Settings")]
+    [SerializeField] private float wallCheckDistance = 0.5f;
+    [SerializeField] private float wallClimbSpeed = 3f;
+    [SerializeField] private LayerMask wallLayer;
+    [SerializeField] private float wallMaxDuration = 1.5f;
+
+    private enum PlayerState { Idle, Move, Jump, Fall, Dash, WallIdle, WallMove }
 
     [SerializeField] private PlayerState _state = PlayerState.Idle;
     private Rigidbody2D _rb;
@@ -26,17 +37,33 @@ public class PlayerController : MonoBehaviour
     private bool _isGrounded;
     private bool _jumpQueued;
     private bool _facingRight = true;
+    private bool _isDashing;
+    private bool _dashQueued;
+    private float _dashTimer;
+    private float _dashCooldownTimer;
+    private float _dashDirection;
+    private float _originalGravityScale;
+    private bool _isOnWall;
+    private int _wallDirection; // -1 = left, 1 = right
+    private bool _facingDown;
+    private float _wallTimer;
+    private bool _dashAvailable = true;
 
     private void Awake()
     {
         _rb = GetComponent<Rigidbody2D>();
         _anim = GetComponent<Animator>();
         _sr = GetComponent<SpriteRenderer>();
+        _originalGravityScale = _rb.gravityScale;
     }
 
     private void FixedUpdate()
     {
         UpdateGrounded();
+        UpdateWallContact();
+        HandleDash();
+        TickWallTimer();
+        TickDashCooldown();
         ApplyMovement();
         ApplyJump();
         UpdateState();
@@ -46,31 +73,208 @@ public class PlayerController : MonoBehaviour
 
     private void ApplyMovement()
     {
+        if (_isDashing) return;
+
         var velocity = _rb.linearVelocity;
+        if (_isOnWall)
+        {
+            // 벽에 붙은 동안은 수직 이동만 허용
+            velocity.x = 0f;
+            velocity.y = _moveInput.y * wallClimbSpeed;
+            _rb.linearVelocity = velocity;
+            return;
+        }
+
         velocity.x = _moveInput.x * moveSpeed;
         _rb.linearVelocity = velocity;
     }
 
     private void ApplyJump()
     {
+        if (_isDashing) return;
         if (!_jumpQueued) return;
         _jumpQueued = false;
-        if (!_isGrounded) return;
+        if (!_isGrounded && !_isOnWall) return;
 
         var velocity = _rb.linearVelocity;
         velocity.y = jumpForce;
         _rb.linearVelocity = velocity;
+
+        // 벽에서 점프하면 벽 상태 해제
+        if (_isOnWall)
+        {
+            ExitWall();
+        }
     }
 
     private void UpdateGrounded()
     {
         if (groundCheck == null) return;
         _isGrounded = Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundLayer);
+
+        if (_isGrounded)
+        {
+            // 착지 시 벽 타기/대시 충전
+            _wallTimer = wallMaxDuration;
+            _dashAvailable = true;
+        }
+    }
+
+    private void UpdateWallContact()
+    {
+        if (_isGrounded || _isDashing)
+        {
+            ExitWall();
+            return;
+        }
+
+        if (_wallTimer <= 0f)
+        {
+            ExitWall();
+            return;
+        }
+
+        // 좌우로 벽 탐색
+        bool hitRight = Physics2D.Raycast(transform.position, Vector2.right, wallCheckDistance, wallLayer);
+        bool hitLeft = Physics2D.Raycast(transform.position, Vector2.left, wallCheckDistance, wallLayer);
+
+        if (hitRight || hitLeft)
+        {
+            int newWallDir = hitRight ? 1 : -1;
+
+            // 반대 입력 시 즉시 탈출
+            if (_moveInput.x != 0 && Mathf.Sign(_moveInput.x) != newWallDir)
+            {
+                ExitWall();
+                return;
+            }
+
+            EnterWall(newWallDir);
+            return;
+        }
+
+        ExitWall();
+    }
+
+    private void EnterWall(int direction)
+    {
+        _isOnWall = true;
+        _wallDirection = direction;
+        _rb.gravityScale = 0f;
+        _dashQueued = false; // 벽에서 대시 금지
+    }
+
+    private void ExitWall()
+    {
+        if (!_isOnWall) return;
+        _isOnWall = false;
+        _rb.gravityScale = _originalGravityScale;
+        _facingDown = false;
+    }
+
+    private void HandleDash()
+    {
+        if (_isOnWall)
+        {
+            _dashQueued = false; // 벽에서 대시 불가
+        }
+
+        if (_dashQueued && !_isDashing)
+        {
+            if (_dashAvailable && _dashCooldownTimer <= 0f)
+            {
+                _dashQueued = false;
+                StartDash();
+            }
+            else
+            {
+                // 쿨타임 중 입력은 버림
+                _dashQueued = false;
+            }
+        }
+
+        if (!_isDashing) return;
+
+        // 반대 키 입력 시 대시 취소
+        if (_moveInput.x != 0 && Mathf.Sign(_moveInput.x) != Mathf.Sign(_dashDirection))
+        {
+            EndDash();
+            return;
+        }
+
+        _dashTimer -= Time.fixedDeltaTime;
+        var velocity = _rb.linearVelocity;
+        velocity.x = _dashDirection * dashSpeed;
+        velocity.y = 0f; // 중력 무시
+        _rb.linearVelocity = velocity;
+
+        if (_dashTimer <= 0f)
+        {
+            EndDash();
+        }
+    }
+
+    private void StartDash()
+    {
+        _isDashing = true;
+        _dashTimer = dashDuration;
+        _dashCooldownTimer = dashCooldown;
+        _dashAvailable = false;
+        _dashDirection = _facingRight ? 1f : -1f;
+        _rb.gravityScale = 0f;
+
+        var velocity = _rb.linearVelocity;
+        velocity.x = _dashDirection * dashSpeed;
+        velocity.y = 0f;
+        _rb.linearVelocity = velocity;
+    }
+
+    private void EndDash()
+    {
+        _isDashing = false;
+        _rb.gravityScale = _originalGravityScale;
+    }
+
+    private void TickDashCooldown()
+    {
+        if (_dashCooldownTimer > 0f)
+        {
+            _dashCooldownTimer -= Time.fixedDeltaTime;
+            if (_dashCooldownTimer < 0f) _dashCooldownTimer = 0f;
+        }
+    }
+
+    private void TickWallTimer()
+    {
+        if (_isGrounded) return;
+        if (!_isOnWall) return;
+
+        if (_wallTimer > 0f)
+        {
+            _wallTimer -= Time.fixedDeltaTime;
+        }
+
+        if (_wallTimer <= 0f && _isOnWall)
+        {
+            ExitWall();
+        }
     }
 
     private void UpdateState()
     {
         var vy = _rb.linearVelocity.y;
+
+        if (_isDashing)
+        {
+            _state = PlayerState.Dash;
+            return;
+        }
+
+        if (_isOnWall)
+        {
+            _state = Mathf.Abs(_moveInput.y) > 0.01f ? PlayerState.WallMove : PlayerState.WallIdle;
+            return;
+        }
 
         if (!_isGrounded)
         {
@@ -89,6 +293,9 @@ public class PlayerController : MonoBehaviour
         _anim.SetFloat("Speed", Mathf.Abs(velocity.x));
         _anim.SetBool("IsGrounded", _isGrounded);
         _anim.SetFloat("VerticalVel", velocity.y);
+        _anim.SetBool("IsDashing", _isDashing);
+        _anim.SetBool("IsOnWall", _isOnWall);
+        _anim.SetFloat("WallVerticalVel", _isOnWall ? Mathf.Abs(velocity.y) : 0f);
     }
 
     private void UpdateFlip()
@@ -105,6 +312,25 @@ public class PlayerController : MonoBehaviour
         }
 
         _sr.flipX = !_facingRight;
+
+        if (_isOnWall)
+        {
+            // 벽 상태에서 한 번 아래로 이동하면 플립 유지, 위로 이동 시 해제
+            if (_moveInput.y < -0.01f)
+            {
+                _facingDown = true;
+            }
+            else if (_moveInput.y > 0.01f)
+            {
+                _facingDown = false;
+            }
+
+            _sr.flipY = _facingDown;
+        }
+        else
+        {
+            _sr.flipY = false;
+        }
     }
 
     public void OnMove(InputAction.CallbackContext context)
@@ -116,5 +342,11 @@ public class PlayerController : MonoBehaviour
     {
         if (!context.started) return;
         _jumpQueued = true;
+    }
+
+    public void OnDash(InputAction.CallbackContext context)
+    {
+        if (!context.started) return;
+        _dashQueued = true;
     }
 }
