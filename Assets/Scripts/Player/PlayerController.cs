@@ -26,6 +26,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float wallClimbSpeed = 3f;
     [SerializeField] private LayerMask wallLayer;
     [SerializeField] private float wallMaxDuration = 1.5f;
+    [SerializeField] private float wallJumpHorizontalForce = 7f;
 
     private enum PlayerState { Idle, Move, Jump, Fall, Dash, WallIdle, WallMove }
 
@@ -98,6 +99,12 @@ public class PlayerController : MonoBehaviour
 
         var velocity = _rb.linearVelocity;
         velocity.y = jumpForce;
+        // 벽 점프 시 벽 반대 방향으로 수평 힘 부여
+        if (_isOnWall)
+        {
+            velocity.x = -_wallDirection * wallJumpHorizontalForce;
+            _facingRight = velocity.x > 0f;
+        }
         _rb.linearVelocity = velocity;
 
         // 벽에서 점프하면 벽 상태 해제

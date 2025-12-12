@@ -442,11 +442,13 @@ MonoBehaviour:
     m_Bits: 64
   dashSpeed: 25
   dashDuration: 0.15
+  dashCooldown: 1
   wallCheckDistance: 0.5
   wallClimbSpeed: 3
   wallLayer:
     serializedVersion: 2
     m_Bits: 128
+  wallMaxDuration: 1.5
   _state: 0
 --- !u!95 &201528933
 Animator:
