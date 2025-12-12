@@ -10,6 +10,9 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float moveSpeed = 5f;
     [Header("Jump Settings")]
     [SerializeField] private float jumpForce = 8f;
+    [SerializeField] private float minJumpForce = 4f;
+    [SerializeField] private float jumpHoldForce = 15f;
+    [SerializeField] private float maxJumpHoldTime = 0.3f;
 
     [Header("Ground Check")]
     [SerializeField] private Transform groundCheck;
@@ -37,6 +40,9 @@ public class PlayerController : MonoBehaviour
     private Vector2 _moveInput;
     private bool _isGrounded;
     private bool _jumpQueued;
+    private bool _isJumpHeld;
+    private bool _isJumping;
+    private float _jumpHoldTimer;
     private bool _facingRight = true;
     private bool _isDashing;
     private bool _dashQueued;
@@ -93,30 +99,56 @@ public class PlayerController : MonoBehaviour
     private void ApplyJump()
     {
         if (_isDashing) return;
-        if (!_jumpQueued) return;
-        _jumpQueued = false;
-        if (!_isGrounded && !_isOnWall) return;
 
-        var velocity = _rb.linearVelocity;
-        velocity.y = jumpForce;
-        // 벽 점프 시 벽 반대 방향으로 수평 힘 부여
-        if (_isOnWall)
+        // 초기 점프 실행
+        if (_jumpQueued)
         {
-            velocity.x = -_wallDirection * wallJumpHorizontalForce;
-            _facingRight = velocity.x > 0f;
+            _jumpQueued = false;
+            if (!_isGrounded && !_isOnWall) return;
+
+            // 최소 힘으로 점프 시작
+            var velocity = _rb.linearVelocity;
+            velocity.y = minJumpForce;
+            
+            // 벽 점프 시 벽 반대 방향으로 수평 힘 부여
+            if (_isOnWall)
+            {
+                velocity.x = -_wallDirection * wallJumpHorizontalForce;
+                _facingRight = velocity.x > 0f;
+            }
+            _rb.linearVelocity = velocity;
+
+            // 벽에서 점프하면 벽 상태 해제
+            if (_isOnWall)
+            {
+                ExitWall();
+            }
+
+            // 점프 시작
+            _isJumping = true;
+            _jumpHoldTimer = 0f;
         }
-        _rb.linearVelocity = velocity;
 
-        // 벽에서 점프하면 벽 상태 해제
-        if (_isOnWall)
+        // 점프 중이고 스페이스바를 누르고 있는 동안 추가 힘 적용
+        if (_isJumping && _isJumpHeld)
         {
-            ExitWall();
+            // 제한 시간 내에만 추가 힘 적용
+            if (_jumpHoldTimer < maxJumpHoldTime)
+            {
+                // 위로 올라가는 중일 때만 힘 추가
+                if (_rb.linearVelocity.y > 0f)
+                {
+                    _jumpHoldTimer += Time.fixedDeltaTime;
+                    _rb.AddForce(Vector2.up * jumpHoldForce * Time.fixedDeltaTime, ForceMode2D.Impulse);
+                }
+            }
         }
     }
 
     private void UpdateGrounded()
     {
         if (groundCheck == null) return;
+        bool previousGrounded = _isGrounded;
         _isGrounded = Physics2D.OverlapCircle(groundCheck.position, groundCheckRadius, groundLayer);
 
         if (_isGrounded)
@@ -124,6 +156,13 @@ public class PlayerController : MonoBehaviour
             // 착지 시 벽 타기/대시 충전
             _wallTimer = wallMaxDuration;
             _dashAvailable = true;
+            
+            // 이전 프레임에 공중에 있었다가 착지했거나, 속도가 아래로 향하고 있을 때만 점프 상태 초기화
+            if (!previousGrounded || _rb.linearVelocity.y <= 0.1f)
+            {
+                _isJumping = false;
+                _jumpHoldTimer = 0f;
+            }
         }
     }
 
@@ -347,8 +386,21 @@ public class PlayerController : MonoBehaviour
 
     public void OnJump(InputAction.CallbackContext context)
     {
-        if (!context.started) return;
-        _jumpQueued = true;
+        if (context.started)
+        {
+            // 스페이스바를 누르면 점프 시작
+            _isJumpHeld = true;
+            if (_isGrounded || _isOnWall)
+            {
+                _jumpQueued = true;
+            }
+        }
+        else if (context.canceled)
+        {
+            // 스페이스바를 떼면 추가 힘 적용 중단
+            _jumpHoldTimer = maxJumpHoldTime;
+            _isJumpHeld = false;
+        }
     }
 
     public void OnDash(InputAction.CallbackContext context)
