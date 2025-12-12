@@ -14,6 +14,8 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float jumpHoldForce = 15f;
     [SerializeField] private float maxJumpHoldTime = 0.3f;
     [SerializeField] private float jumpBufferTime = 0.15f; // 점프 버퍼 시간
+    [SerializeField] private float coyoteTime = 0.15f; // 땅 코요테 타임
+    [SerializeField] private float wallCoyoteTime = 0.15f; // 벽 코요테 타임
 
     [Header("Ground Check")]
     [SerializeField] private Transform groundCheck;
@@ -45,6 +47,9 @@ public class PlayerController : MonoBehaviour
     private bool _isJumping;
     private float _jumpHoldTimer;
     private float _jumpBufferTimer;
+    private float _coyoteTimer;
+    private float _wallCoyoteTimer;
+    private int _lastWallDirection; // 마지막으로 벽에 닿았던 방향 (코요테 타임용)
     private bool _facingRight = true;
     private bool _isDashing;
     private bool _dashQueued;
@@ -74,6 +79,7 @@ public class PlayerController : MonoBehaviour
         TickWallTimer();
         TickDashCooldown();
         TickJumpBuffer();
+        TickCoyoteTime();
         ApplyMovement();
         ApplyJump();
         UpdateState();
@@ -103,8 +109,12 @@ public class PlayerController : MonoBehaviour
     {
         if (_isDashing) return;
 
-        // 점프 버퍼 체크: 버퍼가 활성화되어 있고 땅이나 벽에 닿으면 점프 실행
-        if (_jumpBufferTimer > 0f && (_isGrounded || _isOnWall))
+        // 코요테 타임 체크: 땅이나 벽에서 떠난 후 짧은 시간 동안 점프 가능
+        bool canJumpFromGround = _isGrounded || _coyoteTimer > 0f;
+        bool canJumpFromWall = _isOnWall || _wallCoyoteTimer > 0f;
+
+        // 점프 버퍼 체크: 버퍼가 활성화되어 있고 땅이나 벽에 닿거나 코요테 타임 내에 있으면 점프 실행
+        if (_jumpBufferTimer > 0f && (canJumpFromGround || canJumpFromWall))
         {
             _jumpBufferTimer = 0f;
             ExecuteJump();
@@ -115,7 +125,7 @@ public class PlayerController : MonoBehaviour
         if (_jumpQueued)
         {
             _jumpQueued = false;
-            if (!_isGrounded && !_isOnWall) return;
+            if (!canJumpFromGround && !canJumpFromWall) return;
             ExecuteJump();
         }
 
@@ -141,11 +151,15 @@ public class PlayerController : MonoBehaviour
         var velocity = _rb.linearVelocity;
         velocity.y = minJumpForce;
         
-        // 벽 점프 시 벽 반대 방향으로 수평 힘 부여
-        if (_isOnWall)
+        // 벽 점프 시 벽 반대 방향으로 수평 힘 부여 (코요테 타임 포함)
+        if (_isOnWall || _wallCoyoteTimer > 0f)
         {
-            velocity.x = -_wallDirection * wallJumpHorizontalForce;
-            _facingRight = velocity.x > 0f;
+            int wallDir = _isOnWall ? _wallDirection : _lastWallDirection;
+            if (wallDir != 0)
+            {
+                velocity.x = -wallDir * wallJumpHorizontalForce;
+                _facingRight = velocity.x > 0f;
+            }
         }
         _rb.linearVelocity = velocity;
 
@@ -159,6 +173,8 @@ public class PlayerController : MonoBehaviour
         _isJumping = true;
         _jumpHoldTimer = 0f;
         _jumpBufferTimer = 0f; // 점프 실행 시 버퍼 초기화
+        _coyoteTimer = 0f; // 점프 실행 시 코요테 타이머 초기화
+        _wallCoyoteTimer = 0f; // 점프 실행 시 벽 코요테 타이머 초기화
     }
 
     private void UpdateGrounded()
@@ -172,6 +188,7 @@ public class PlayerController : MonoBehaviour
             // 착지 시 벽 타기/대시 충전
             _wallTimer = wallMaxDuration;
             _dashAvailable = true;
+            _coyoteTimer = 0f; // 착지 시 코요테 타이머 초기화
             
             // 이전 프레임에 공중에 있었다가 착지했거나, 속도가 아래로 향하고 있을 때만 점프 상태 초기화
             if (!previousGrounded || _rb.linearVelocity.y <= 0.1f)
@@ -180,19 +197,36 @@ public class PlayerController : MonoBehaviour
                 _jumpHoldTimer = 0f;
             }
         }
+        else if (previousGrounded)
+        {
+            // 땅에서 떠난 순간 코요테 타이머 시작
+            _coyoteTimer = coyoteTime;
+        }
     }
 
     private void UpdateWallContact()
     {
+        bool wasOnWall = _isOnWall;
+
         if (_isGrounded || _isDashing)
         {
             ExitWall();
+            if (wasOnWall && !_isGrounded)
+            {
+                // 벽에서 떠난 순간 벽 코요테 타이머 시작
+                _wallCoyoteTimer = wallCoyoteTime;
+            }
             return;
         }
 
         if (_wallTimer <= 0f)
         {
             ExitWall();
+            if (wasOnWall)
+            {
+                // 벽에서 떠난 순간 벽 코요테 타이머 시작
+                _wallCoyoteTimer = wallCoyoteTime;
+            }
             return;
         }
 
@@ -208,20 +242,37 @@ public class PlayerController : MonoBehaviour
             if (_moveInput.x != 0 && Mathf.Sign(_moveInput.x) != newWallDir)
             {
                 ExitWall();
+                if (wasOnWall)
+                {
+                    // 벽에서 떠난 순간 벽 코요테 타이머 시작
+                    _wallCoyoteTimer = wallCoyoteTime;
+                }
                 return;
             }
 
+            if (!_isOnWall)
+            {
+                // 벽에 처음 닿는 순간 코요테 타이머 초기화
+                _wallCoyoteTimer = 0f;
+            }
             EnterWall(newWallDir);
+            _lastWallDirection = newWallDir; // 마지막 벽 방향 저장
             return;
         }
 
         ExitWall();
+        if (wasOnWall)
+        {
+            // 벽에서 떠난 순간 벽 코요테 타이머 시작
+            _wallCoyoteTimer = wallCoyoteTime;
+        }
     }
 
     private void EnterWall(int direction)
     {
         _isOnWall = true;
         _wallDirection = direction;
+        _lastWallDirection = direction; // 마지막 벽 방향 저장
         _rb.gravityScale = 0f;
         _dashQueued = false; // 벽에서 대시 금지
     }
@@ -312,6 +363,21 @@ public class PlayerController : MonoBehaviour
         {
             _jumpBufferTimer -= Time.fixedDeltaTime;
             if (_jumpBufferTimer < 0f) _jumpBufferTimer = 0f;
+        }
+    }
+
+    private void TickCoyoteTime()
+    {
+        if (_coyoteTimer > 0f)
+        {
+            _coyoteTimer -= Time.fixedDeltaTime;
+            if (_coyoteTimer < 0f) _coyoteTimer = 0f;
+        }
+
+        if (_wallCoyoteTimer > 0f)
+        {
+            _wallCoyoteTimer -= Time.fixedDeltaTime;
+            if (_wallCoyoteTimer < 0f) _wallCoyoteTimer = 0f;
         }
     }
 
@@ -415,7 +481,11 @@ public class PlayerController : MonoBehaviour
         {
             // 스페이스바를 누르면 점프 시작
             _isJumpHeld = true;
-            if (_isGrounded || _isOnWall)
+            // 코요테 타임 포함하여 점프 가능 여부 체크
+            bool canJumpFromGround = _isGrounded || _coyoteTimer > 0f;
+            bool canJumpFromWall = _isOnWall || _wallCoyoteTimer > 0f;
+            
+            if (canJumpFromGround || canJumpFromWall)
             {
                 _jumpQueued = true;
             }
