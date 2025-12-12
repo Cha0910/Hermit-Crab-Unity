@@ -13,6 +13,7 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float minJumpForce = 4f;
     [SerializeField] private float jumpHoldForce = 15f;
     [SerializeField] private float maxJumpHoldTime = 0.3f;
+    [SerializeField] private float jumpBufferTime = 0.15f; // 점프 버퍼 시간
 
     [Header("Ground Check")]
     [SerializeField] private Transform groundCheck;
@@ -43,6 +44,7 @@ public class PlayerController : MonoBehaviour
     private bool _isJumpHeld;
     private bool _isJumping;
     private float _jumpHoldTimer;
+    private float _jumpBufferTimer;
     private bool _facingRight = true;
     private bool _isDashing;
     private bool _dashQueued;
@@ -71,6 +73,7 @@ public class PlayerController : MonoBehaviour
         HandleDash();
         TickWallTimer();
         TickDashCooldown();
+        TickJumpBuffer();
         ApplyMovement();
         ApplyJump();
         UpdateState();
@@ -100,33 +103,20 @@ public class PlayerController : MonoBehaviour
     {
         if (_isDashing) return;
 
+        // 점프 버퍼 체크: 버퍼가 활성화되어 있고 땅이나 벽에 닿으면 점프 실행
+        if (_jumpBufferTimer > 0f && (_isGrounded || _isOnWall))
+        {
+            _jumpBufferTimer = 0f;
+            ExecuteJump();
+            return;
+        }
+
         // 초기 점프 실행
         if (_jumpQueued)
         {
             _jumpQueued = false;
             if (!_isGrounded && !_isOnWall) return;
-
-            // 최소 힘으로 점프 시작
-            var velocity = _rb.linearVelocity;
-            velocity.y = minJumpForce;
-            
-            // 벽 점프 시 벽 반대 방향으로 수평 힘 부여
-            if (_isOnWall)
-            {
-                velocity.x = -_wallDirection * wallJumpHorizontalForce;
-                _facingRight = velocity.x > 0f;
-            }
-            _rb.linearVelocity = velocity;
-
-            // 벽에서 점프하면 벽 상태 해제
-            if (_isOnWall)
-            {
-                ExitWall();
-            }
-
-            // 점프 시작
-            _isJumping = true;
-            _jumpHoldTimer = 0f;
+            ExecuteJump();
         }
 
         // 점프 중이고 스페이스바를 누르고 있는 동안 추가 힘 적용
@@ -143,6 +133,32 @@ public class PlayerController : MonoBehaviour
                 }
             }
         }
+    }
+
+    private void ExecuteJump()
+    {
+        // 최소 힘으로 점프 시작
+        var velocity = _rb.linearVelocity;
+        velocity.y = minJumpForce;
+        
+        // 벽 점프 시 벽 반대 방향으로 수평 힘 부여
+        if (_isOnWall)
+        {
+            velocity.x = -_wallDirection * wallJumpHorizontalForce;
+            _facingRight = velocity.x > 0f;
+        }
+        _rb.linearVelocity = velocity;
+
+        // 벽에서 점프하면 벽 상태 해제
+        if (_isOnWall)
+        {
+            ExitWall();
+        }
+
+        // 점프 시작
+        _isJumping = true;
+        _jumpHoldTimer = 0f;
+        _jumpBufferTimer = 0f; // 점프 실행 시 버퍼 초기화
     }
 
     private void UpdateGrounded()
@@ -290,6 +306,15 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    private void TickJumpBuffer()
+    {
+        if (_jumpBufferTimer > 0f)
+        {
+            _jumpBufferTimer -= Time.fixedDeltaTime;
+            if (_jumpBufferTimer < 0f) _jumpBufferTimer = 0f;
+        }
+    }
+
     private void TickWallTimer()
     {
         if (_isGrounded) return;
@@ -393,6 +418,11 @@ public class PlayerController : MonoBehaviour
             if (_isGrounded || _isOnWall)
             {
                 _jumpQueued = true;
+            }
+            else
+            {
+                // 공중에 있을 때는 점프 버퍼 활성화
+                _jumpBufferTimer = jumpBufferTime;
             }
         }
         else if (context.canceled)

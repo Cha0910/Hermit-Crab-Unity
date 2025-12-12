@@ -435,6 +435,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   moveSpeed: 5
   jumpForce: 8
+  minJumpForce: 4
+  jumpHoldForce: 15
+  maxJumpHoldTime: 0.3
+  jumpBufferTime: 0.15
   groundCheck: {fileID: 1433300001}
   groundCheckRadius: 0.2
   groundLayer:
@@ -449,6 +453,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 128
   wallMaxDuration: 1.5
+  wallJumpHorizontalForce: 7
   _state: 0
 --- !u!95 &201528933
 Animator:
