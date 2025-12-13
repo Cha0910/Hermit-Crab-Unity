@@ -6,13 +6,15 @@ using UnityEngine.InputSystem;
 [RequireComponent(typeof(SpriteRenderer))]
 public class PlayerController : MonoBehaviour
 {
+    public static PlayerController Instance { get; private set; }
+
     [Header("Move Settings")]
     [SerializeField] private float moveSpeed = 5f;
     [Header("Jump Settings")]
     [SerializeField] private float jumpForce = 8f;
     [SerializeField] private float minJumpForce = 4f;
-    [SerializeField] private float jumpHoldForce = 15f;
-    [SerializeField] private float maxJumpHoldTime = 0.3f;
+    [SerializeField] private float jumpHoldForce = 10f;
+    [SerializeField] private float maxJumpHoldTime = 0.35f;
     [SerializeField] private float jumpBufferTime = 0.15f; // 점프 버퍼 시간
     [SerializeField] private float coyoteTime = 0.15f; // 땅 코요테 타임
     [SerializeField] private float wallCoyoteTime = 0.15f; // 벽 코요테 타임
@@ -34,7 +36,11 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float wallMaxDuration = 1.5f;
     [SerializeField] private float wallJumpHorizontalForce = 7f;
 
-    private enum PlayerState { Idle, Move, Jump, Fall, Dash, WallIdle, WallMove }
+    [Header("Health Settings")]
+    [SerializeField] private float maxHealth = 100f;
+    [SerializeField] private float currentHealth;
+
+    private enum PlayerState { Idle, Move, Jump, Fall, Dash, WallIdle, WallMove, Dead }
 
     [SerializeField] private PlayerState _state = PlayerState.Idle;
     private Rigidbody2D _rb;
@@ -62,17 +68,34 @@ public class PlayerController : MonoBehaviour
     private bool _facingDown;
     private float _wallTimer;
     private bool _dashAvailable = true;
+    private bool _isDead;
 
     private void Awake()
     {
+        // 싱글톤 패턴 초기화
+        if (Instance == null)
+        {
+            Instance = this;
+        }
+        else
+        {
+            Debug.LogWarning("PlayerController 인스턴스가 이미 존재합니다. 중복 인스턴스를 제거합니다.");
+            Destroy(gameObject);
+            return;
+        }
+
         _rb = GetComponent<Rigidbody2D>();
         _anim = GetComponent<Animator>();
         _sr = GetComponent<SpriteRenderer>();
         _originalGravityScale = _rb.gravityScale;
+        currentHealth = maxHealth;
+        _isDead = false;
     }
 
     private void FixedUpdate()
     {
+        if (_isDead) return;
+
         UpdateGrounded();
         UpdateWallContact();
         HandleDash();
@@ -399,6 +422,13 @@ public class PlayerController : MonoBehaviour
 
     private void UpdateState()
     {
+        // 사망 상태가 가장 우선순위가 높음
+        if (_isDead)
+        {
+            _state = PlayerState.Dead;
+            return;
+        }
+
         var vy = _rb.linearVelocity.y;
 
         if (_isDashing)
@@ -433,6 +463,7 @@ public class PlayerController : MonoBehaviour
         _anim.SetBool("IsDashing", _isDashing);
         _anim.SetBool("IsOnWall", _isOnWall);
         _anim.SetFloat("WallVerticalVel", _isOnWall ? Mathf.Abs(velocity.y) : 0f);
+        _anim.SetBool("IsDead", _isDead);
     }
 
     private void UpdateFlip()
@@ -507,5 +538,52 @@ public class PlayerController : MonoBehaviour
     {
         if (!context.started) return;
         _dashQueued = true;
+    }
+
+    public void TakeDamage(float damage)
+    {
+        if (_isDead) return;
+
+        currentHealth -= damage;
+        currentHealth = Mathf.Max(0f, currentHealth);
+
+        Debug.Log($"플레이어가 데미지를 받았습니다! 현재 체력: {currentHealth}/{maxHealth}");
+
+        if (currentHealth <= 0f)
+        {
+            Die();
+        }
+    }
+
+    private void Die()
+    {
+        if (_isDead) return;
+
+        _isDead = true;
+        _state = PlayerState.Dead;
+        
+        // 사망 시 물리 효과 중지
+        _rb.linearVelocity = Vector2.zero;
+        _rb.gravityScale = 0f;
+        
+        Debug.Log("플레이어가 사망했습니다!");
+        
+        // 게임오버 처리 (나중에 확장 가능)
+        // 예: 게임오버 UI 표시, 씬 재시작 등
+    }
+
+    public float GetCurrentHealth()
+    {
+        return currentHealth;
+    }
+
+    public float GetMaxHealth()
+    {
+        return maxHealth;
+    }
+
+    public bool IsDead()
+    {
+        return _isDead;
     }
 }
