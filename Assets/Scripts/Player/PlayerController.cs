@@ -40,13 +40,23 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float maxHealth = 100f;
     [SerializeField] private float currentHealth;
 
-    private enum PlayerState { Idle, Move, Jump, Fall, Dash, WallIdle, WallMove, Dead }
+    [Header("Attack Settings")]
+    [SerializeField] private float attackRange = 3f;
+    [SerializeField] private float attackDamage = 20f;
+    [SerializeField] private float attackAngle = 90f; // 부채꼴 각도
+    [SerializeField] private float attackCooldown = 0.3f; // 공격 쿨타임
+    [SerializeField] private LayerMask enemyLayer;
+
+    private enum PlayerState { Idle, Move, Jump, Fall, Dash, WallIdle, WallMove, Attack, Dead }
 
     [SerializeField] private PlayerState _state = PlayerState.Idle;
     private Rigidbody2D _rb;
     private Animator _anim;
     private SpriteRenderer _sr;
     private Vector2 _moveInput;
+    private Vector2 _lastAttackDirection; // 마지막 공격 방향
+    private bool _isAttacking; // 공격 중인지
+    private float _attackTimer; // 공격 타이머
     private bool _isGrounded;
     private bool _jumpQueued;
     private bool _isJumpHeld;
@@ -103,6 +113,7 @@ public class PlayerController : MonoBehaviour
         TickDashCooldown();
         TickJumpBuffer();
         TickCoyoteTime();
+        TickAttackTimer();
         ApplyMovement();
         ApplyJump();
         UpdateState();
@@ -404,6 +415,19 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    private void TickAttackTimer()
+    {
+        if (_isAttacking && _attackTimer > 0f)
+        {
+            _attackTimer -= Time.fixedDeltaTime;
+            if (_attackTimer <= 0f)
+            {
+                _isAttacking = false;
+                _lastAttackDirection = Vector2.zero; // 공격 종료 시 방향 초기화
+            }
+        }
+    }
+
     private void TickWallTimer()
     {
         if (_isGrounded) return;
@@ -430,6 +454,13 @@ public class PlayerController : MonoBehaviour
         }
 
         var vy = _rb.linearVelocity.y;
+
+        // 공격 상태 체크
+        if (_isAttacking)
+        {
+            _state = PlayerState.Attack;
+            return;
+        }
 
         if (_isDashing)
         {
@@ -463,6 +494,7 @@ public class PlayerController : MonoBehaviour
         _anim.SetBool("IsDashing", _isDashing);
         _anim.SetBool("IsOnWall", _isOnWall);
         _anim.SetFloat("WallVerticalVel", _isOnWall ? Mathf.Abs(velocity.y) : 0f);
+        _anim.SetBool("IsAttacking", _isAttacking);
         _anim.SetBool("IsDead", _isDead);
     }
 
@@ -470,29 +502,46 @@ public class PlayerController : MonoBehaviour
     {
         if (_sr == null) return;
 
-        if (_moveInput.x > 0.01f)
+        // flipX 방향 결정: 공격 중이면 공격 방향, 아니면 이동 입력
+        if (_isAttacking && _lastAttackDirection.magnitude > 0.01f && !_isOnWall)
         {
-            _facingRight = true;
+            // 바닥에서 공격 중: 공격 방향의 x 값에 따라 좌/우 flip
+            _facingRight = _lastAttackDirection.x > 0.01f;
         }
-        else if (_moveInput.x < -0.01f)
+        else
         {
-            _facingRight = false;
+            // 이동 입력에 따라 좌/우 flip
+            if (_moveInput.x > 0.01f)
+            {
+                _facingRight = true;
+            }
+            else if (_moveInput.x < -0.01f)
+            {
+                _facingRight = false;
+            }
         }
-
         _sr.flipX = !_facingRight;
 
+        // flipY 방향 결정: 벽 상태일 때만 적용
         if (_isOnWall)
         {
-            // 벽 상태에서 한 번 아래로 이동하면 플립 유지, 위로 이동 시 해제
-            if (_moveInput.y < -0.01f)
+            if (_isAttacking && _lastAttackDirection.magnitude > 0.01f)
             {
-                _facingDown = true;
+                // 벽에서 공격 중: 공격 방향의 y 값에 따라 위/아래 flip
+                _facingDown = _lastAttackDirection.y < -0.01f;
             }
-            else if (_moveInput.y > 0.01f)
+            else
             {
-                _facingDown = false;
+                // 벽 상태에서 이동 입력에 따라 위/아래 flip
+                if (_moveInput.y < -0.01f)
+                {
+                    _facingDown = true;
+                }
+                else if (_moveInput.y > 0.01f)
+                {
+                    _facingDown = false;
+                }
             }
-
             _sr.flipY = _facingDown;
         }
         else
@@ -540,6 +589,62 @@ public class PlayerController : MonoBehaviour
         _dashQueued = true;
     }
 
+    public void OnAttack(InputAction.CallbackContext context)
+    {
+        if (!context.started || _isDead) return;
+        PerformAttack();
+    }
+
+    private void PerformAttack()
+    {
+        // 공격 중이면 중복 공격 방지
+        if (_isAttacking) return;
+
+        // 마우스 위치를 월드 좌표로 변환
+        Camera mainCamera = Camera.main;
+        if (mainCamera == null)
+        {
+            Debug.LogWarning("메인 카메라를 찾을 수 없습니다.");
+            return;
+        }
+
+        Vector3 mouseScreenPos = Mouse.current.position.ReadValue();
+        Vector3 mouseWorldPos = mainCamera.ScreenToWorldPoint(new Vector3(mouseScreenPos.x, mouseScreenPos.y, mainCamera.nearClipPlane));
+        mouseWorldPos.z = transform.position.z; // Z 좌표를 플레이어와 동일하게 설정
+
+        // 플레이어 위치에서 마우스 방향 계산
+        Vector2 attackDirection = (mouseWorldPos - transform.position).normalized;
+
+        // 공격 상태 시작
+        _isAttacking = true;
+        _attackTimer = attackCooldown;
+        _lastAttackDirection = attackDirection; // 공격 방향 저장 (UpdateFlip에서 사용)
+
+        // 공격 범위 내의 모든 적 탐지
+        Collider2D[] hitColliders = Physics2D.OverlapCircleAll(transform.position, attackRange, enemyLayer);
+
+        foreach (Collider2D hitCollider in hitColliders)
+        {
+            // 적의 방향 계산
+            Vector2 toEnemy = (hitCollider.transform.position - transform.position).normalized;
+
+            // 각도 계산 (내적을 사용하여 각도 확인)
+            float angle = Vector2.Angle(attackDirection, toEnemy);
+
+            // 90도 부채꼴 범위 내에 있는지 확인 (각도가 절반인 45도 이내)
+            if (angle <= attackAngle * 0.5f)
+            {
+                // 적에게 데미지 적용
+                Enemy enemy = hitCollider.GetComponent<Enemy>();
+                if (enemy != null)
+                {
+                    enemy.TakeDamage(attackDamage);
+                    Debug.Log($"적에게 {attackDamage} 데미지를 입혔습니다!");
+                }
+            }
+        }
+    }
+
     public void TakeDamage(float damage)
     {
         if (_isDead) return;
@@ -568,8 +673,7 @@ public class PlayerController : MonoBehaviour
         
         Debug.Log("플레이어가 사망했습니다!");
         
-        // 게임오버 처리 (나중에 확장 가능)
-        // 예: 게임오버 UI 표시, 씬 재시작 등
+        // 게임오버 처리 (나중에 확장)
     }
 
     public float GetCurrentHealth()
