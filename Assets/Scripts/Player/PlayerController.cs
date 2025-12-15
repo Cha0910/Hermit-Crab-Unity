@@ -47,6 +47,10 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float attackCooldown = 0.3f; // 공격 쿨타임
     [SerializeField] private LayerMask enemyLayer;
 
+    [Header("Item Interaction Settings")]
+    [SerializeField] private float interactRange = 1.5f; // 아이템 상호작용 범위
+    [SerializeField] private LayerMask itemLayer; // 아이템 레이어
+
     private enum PlayerState { Idle, Move, Jump, Fall, Dash, WallIdle, WallMove, Attack, Dead }
 
     [SerializeField] private PlayerState _state = PlayerState.Idle;
@@ -80,6 +84,9 @@ public class PlayerController : MonoBehaviour
     private bool _dashAvailable = true;
     private bool _isDead;
 
+    [Header("Weapon System")]
+    private WeaponManager _weaponManager;
+
     private void Awake()
     {
         // 싱글톤 패턴 초기화
@@ -97,6 +104,7 @@ public class PlayerController : MonoBehaviour
         _rb = GetComponent<Rigidbody2D>();
         _anim = GetComponent<Animator>();
         _sr = GetComponent<SpriteRenderer>();
+        _weaponManager = GetComponent<WeaponManager>();
         _originalGravityScale = _rb.gravityScale;
         currentHealth = maxHealth;
         _isDead = false;
@@ -595,6 +603,35 @@ public class PlayerController : MonoBehaviour
         PerformAttack();
     }
 
+    public void OnInteract(InputAction.CallbackContext context)
+    {
+        if ((!context.performed && !context.started) || _isDead) return;
+
+        // 범위 내의 ItemPickup 찾기
+        LayerMask searchLayer = itemLayer.value != 0 ? itemLayer : ~0; // 레이어가 설정되지 않았으면 모든 레이어 검사
+        Collider2D[] colliders = Physics2D.OverlapCircleAll(transform.position, interactRange, searchLayer);
+        foreach (Collider2D col in colliders)
+        {
+            ItemPickup itemPickup = col.GetComponent<ItemPickup>();
+            if (itemPickup != null)
+            {
+                // ItemPickup의 OnInteract 호출 (범위 체크는 ItemPickup 내부에서 처리)
+                itemPickup.OnInteract(context);
+            }
+        }
+    }
+
+    public void OnSkill(InputAction.CallbackContext context)
+    {
+        if (!context.performed || _isDead) return;
+
+        // WeaponManager의 OnSkill 호출
+        if (_weaponManager != null)
+        {
+            _weaponManager.OnSkill(context);
+        }
+    }
+
     private void PerformAttack()
     {
         // 공격 중이면 중복 공격 방지
@@ -689,5 +726,13 @@ public class PlayerController : MonoBehaviour
     public bool IsDead()
     {
         return _isDead;
+    }
+
+    /// <summary>
+    /// WeaponManager 참조 반환
+    /// </summary>
+    public WeaponManager GetWeaponManager()
+    {
+        return _weaponManager;
     }
 }
