@@ -111,8 +111,8 @@ public class ItemPickup : MonoBehaviour
 
         Debug.Log($"아이템 획득: {weaponItem.WeaponName}");
 
-        // 아이템 오브젝트 비활성화 (또는 제거)
-        gameObject.SetActive(false);
+        // 아이템 오브젝트 제거
+        Destroy(gameObject);
     }
 
     /// <summary>

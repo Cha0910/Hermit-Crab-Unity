@@ -1,13 +1,13 @@
 using UnityEngine;
 
 /// <summary>
-///  테스트용 스킬
+/// 검기 스킬
 /// </summary>
 public class SwordSkill : WeaponSkill
 {
     [Header("Sword Skill Settings")]
-    [SerializeField] private float width = 0.5f; // 직사각형의 너비
-    [SerializeField] private float height = 3f; // 직사각형의 높이
+    [SerializeField] private GameObject projectilePrefab; // 투사체 프리팹
+    [SerializeField] private float projectileSpeed = 10f; // 투사체 속도
     [SerializeField] private LayerMask enemyLayer; // 적 레이어
 
     public override void ExecuteSkill(Vector2 direction)
@@ -18,42 +18,33 @@ public class SwordSkill : WeaponSkill
             return;
         }
 
-        if (!CanUse())
+        // 검기 생성
+        CreateProjectile(direction);
+    }
+
+    private void CreateProjectile(Vector2 direction)
+    {
+        // 프리팹이 없으면 경고
+        if (projectilePrefab == null)
         {
+            Debug.LogError("프리팹이 설정되지 않았습니다! SwordSkill의 Projectile Prefab 필드에 프리팹을 할당해주세요.");
             return;
         }
 
-        // 쿨타임 시작
-        StartCooldown();
+        // 검기 프리팹 인스턴스화
+        GameObject projectileObj = Instantiate(projectilePrefab, playerTransform.position, 
+            Quaternion.Euler(0, 0, Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg));
 
-        // 플레이어 위치에서 스킬 방향으로 직사각형 히트박스 생성
-        Vector2 startPosition = playerTransform.position;
-        Vector2 endPosition = startPosition + direction * range;
-
-        // 직사각형의 중심 위치 계산
-        Vector2 boxCenter = (startPosition + endPosition) * 0.5f;
-
-        // 직사각형의 각도 계산 (direction 방향으로 회전)
-        float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
-
-        // 직사각형 크기 (세로로 긴 직사각형)
-        Vector2 boxSize = new Vector2(width, height);
-
-        // 직사각형 범위 내의 모든 적 탐지
-        Collider2D[] hitColliders = Physics2D.OverlapBoxAll(boxCenter, boxSize, angle, enemyLayer);
-
-        // 적에게 데미지 적용
-        foreach (Collider2D hitCollider in hitColliders)
+        // SwordProjectile 컴포넌트 가져오기
+        SwordProjectile projectile = projectileObj.GetComponent<SwordProjectile>();
+        if (projectile == null)
         {
-            Enemy enemy = hitCollider.GetComponent<Enemy>();
-            if (enemy != null)
-            {
-                enemy.TakeDamage(damage);
-                Debug.Log($"검 스킬로 적에게 {damage} 데미지를 입혔습니다!");
-            }
+            Debug.LogError("프리팹에 SwordProjectile 컴포넌트가 없습니다!");
+            Destroy(projectileObj);
+            return;
         }
 
-        Debug.Log($"검 스킬 발동! 방향: {direction}, 범위: {range}");
+        // 검기 초기화
+        projectile.Initialize(direction, projectileSpeed, range, damage, enemyLayer);
     }
 }
-
