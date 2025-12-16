@@ -10,7 +10,7 @@ public class SwordSkill : WeaponSkill
     [SerializeField] private float projectileSpeed = 10f; // 투사체 속도
     [SerializeField] private LayerMask enemyLayer; // 적 레이어
 
-    public override void ExecuteSkill(Vector2 direction)
+    protected override void ExecuteSkill(Vector2 direction)
     {
         if (playerTransform == null)
         {

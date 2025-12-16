@@ -11,10 +11,6 @@ public class WeaponManager : MonoBehaviour
     [SerializeField] private WeaponItem currentWeapon;
     [SerializeField] private WeaponSkill currentSkill;
 
-    [Header("Cooldown")]
-    private float currentCooldownTimer = 0f;
-    private float skillCooldown = 1f;
-
     private Transform playerTransform;
     private GameObject skillInstance; // 현재 스킬 인스턴스
 
@@ -25,14 +21,10 @@ public class WeaponManager : MonoBehaviour
 
     private void Update()
     {
-        // 쿨다운 관리
-        if (currentCooldownTimer > 0f)
+        // 스킬의 쿨타임 업데이트
+        if (currentSkill != null)
         {
-            currentCooldownTimer -= Time.deltaTime;
-            if (currentCooldownTimer < 0f)
-            {
-                currentCooldownTimer = 0f;
-            }
+            currentSkill.UpdateCooldown();
         }
     }
 
@@ -59,8 +51,6 @@ public class WeaponManager : MonoBehaviour
 
         // 새 무기 장착
         currentWeapon = weapon;
-        skillCooldown = weapon.SkillCooldown;
-        currentCooldownTimer = 0f; // 새 무기 장착 시 쿨다운 초기화
         Debug.Log($"무기 장착: {weapon.WeaponName}");
 
         // 스킬 인스턴스 생성
@@ -99,9 +89,6 @@ public class WeaponManager : MonoBehaviour
             currentWeapon = null;
         }
 
-        // 쿨다운 초기화
-        currentCooldownTimer = 0f;
-        skillCooldown = 1f;
     }
 
     /// <summary>
@@ -147,12 +134,6 @@ public class WeaponManager : MonoBehaviour
             return;
         }
 
-        // 쿨다운 체크
-        if (currentCooldownTimer > 0f)
-        {
-            return;
-        }
-
         // 마우스 위치를 월드 좌표로 변환
         Camera mainCamera = Camera.main;
         if (mainCamera == null)
@@ -170,11 +151,8 @@ public class WeaponManager : MonoBehaviour
         // 플레이어 위치에서 마우스 방향 계산
         Vector2 skillDirection = (mouseWorldPos - playerTransform.position).normalized;
 
-        // 쿨다운 시작
-        currentCooldownTimer = skillCooldown;
-
-        // 스킬 실행
-        currentSkill.ExecuteSkill(skillDirection);
+        // 스킬 실행 (쿨타임 체크는 스킬 내부에서 처리)
+        currentSkill.TryExecuteSkill(skillDirection);
     }
 
     /// <summary>
@@ -210,8 +188,8 @@ public class WeaponManager : MonoBehaviour
     /// </summary>
     public float GetSkillCooldownProgress()
     {
-        if (skillCooldown <= 0f) return 1f;
-        return 1f - (currentCooldownTimer / skillCooldown);
+        if (currentSkill == null) return 1f;
+        return currentSkill.GetCooldownProgress();
     }
 
     /// <summary>

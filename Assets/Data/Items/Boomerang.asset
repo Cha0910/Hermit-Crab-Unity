@@ -10,12 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 32a3ebcd63f25b34398218a443addded, type: 3}
-  m_Name: Sword
+  m_Name: Boomerang
   m_EditorClassIdentifier: Assembly-CSharp::WeaponItem
-  weaponName: Sword
+  weaponName: Boomerang
   weaponIcon: {fileID: 0}
-  description: "\uD14C\uC2A4\uD2B8 \uC6A9 \uBB34\uAE30"
-  skillPrefab: {fileID: 8374783405902533129, guid: 69faf312b117884478eca1ea061cbfc1, type: 3}
+  description: "\uD14C\uC2A4\uD2B8 \uC6A9 \uBD80\uBA54\uB791"
+  skillPrefab: {fileID: 8272593061203267562, guid: e978b5ab0e206674d916bf753e671fb2, type: 3}
   skillCooldown: 1
   skillDamage: 10
   skillRange: 5
