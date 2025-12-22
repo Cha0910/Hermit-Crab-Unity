@@ -9,6 +9,7 @@ public abstract class WeaponSkill : MonoBehaviour
     [Header("Skill Settings")]
     [SerializeField] protected float damage = 10f;
     [SerializeField] protected float range = 5f;
+    protected float knockbackForce = 5f; // 스킬 넉백 힘
 
     protected Transform playerTransform;
     
@@ -25,11 +26,12 @@ public abstract class WeaponSkill : MonoBehaviour
     /// <summary>
     /// 스킬 초기화 (무기 장착 시 호출)
     /// </summary>
-    public virtual void Initialize(Transform player, float skillCooldown, float skillDamage, float skillRange)
+    public virtual void Initialize(Transform player, float skillCooldown, float skillDamage, float skillRange, float skillKnockbackForce = 5f)
     {
         playerTransform = player;
         damage = skillDamage;
         range = skillRange;
+        knockbackForce = skillKnockbackForce;
         this.skillCooldown = skillCooldown;
         this.currentCooldownTimer = 0f;
     }

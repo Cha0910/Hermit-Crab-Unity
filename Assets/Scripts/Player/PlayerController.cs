@@ -40,18 +40,23 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float maxHealth = 100f;
     [SerializeField] private float currentHealth;
 
+    [Header("Knockback Settings")]
+    [SerializeField] private float knockbackForce = 10f; // 기본 넉백 힘
+    [SerializeField] private float knockbackDuration = 0.3f; // 넉백 지속 시간
+
     [Header("Attack Settings")]
     [SerializeField] private float attackRange = 3f;
     [SerializeField] private float attackDamage = 20f;
     [SerializeField] private float attackAngle = 90f; // 부채꼴 각도
     [SerializeField] private float attackCooldown = 0.3f; // 공격 쿨타임
+    [SerializeField] private float attackKnockbackForce = 8f; // 기본 공격 넉백 힘
     [SerializeField] private LayerMask enemyLayer;
 
     [Header("Item Interaction Settings")]
     [SerializeField] private float interactRange = 1.5f; // 아이템 상호작용 범위
     [SerializeField] private LayerMask itemLayer; // 아이템 레이어
 
-    private enum PlayerState { Idle, Move, Jump, Fall, Dash, WallIdle, WallMove, Attack, Dead }
+    private enum PlayerState { Idle, Move, Jump, Fall, Dash, WallIdle, WallMove, Attack, Hit, Dead }
 
     [SerializeField] private PlayerState _state = PlayerState.Idle;
     private Rigidbody2D _rb;
@@ -83,6 +88,8 @@ public class PlayerController : MonoBehaviour
     private float _wallTimer;
     private bool _dashAvailable = true;
     private bool _isDead;
+    private bool _isKnockedBack;
+    private float _knockbackTimer;
 
     [Header("Weapon System")]
     private WeaponManager _weaponManager;
@@ -122,6 +129,7 @@ public class PlayerController : MonoBehaviour
         TickJumpBuffer();
         TickCoyoteTime();
         TickAttackTimer();
+        TickKnockbackTimer();
         ApplyMovement();
         ApplyJump();
         UpdateState();
@@ -131,6 +139,8 @@ public class PlayerController : MonoBehaviour
 
     private void ApplyMovement()
     {
+        // 넉백 중에는 이동 입력 무시
+        if (_isKnockedBack) return;
         if (_isDashing) return;
 
         var velocity = _rb.linearVelocity;
@@ -250,6 +260,20 @@ public class PlayerController : MonoBehaviour
     {
         bool wasOnWall = _isOnWall;
 
+        // 넉백 중에는 벽타기 불가
+        if (_isKnockedBack)
+        {
+            if (_isOnWall)
+            {
+                ExitWall();
+                if (wasOnWall)
+                {
+                    _wallCoyoteTimer = wallCoyoteTime;
+                }
+            }
+            return;
+        }
+
         if (_isGrounded || _isDashing)
         {
             ExitWall();
@@ -329,6 +353,17 @@ public class PlayerController : MonoBehaviour
 
     private void HandleDash()
     {
+        // 넉백 중에는 대시 불가
+        if (_isKnockedBack)
+        {
+            if (_isDashing)
+            {
+                EndDash();
+            }
+            _dashQueued = false;
+            return;
+        }
+
         if (_isOnWall)
         {
             _dashQueued = false; // 벽에서 대시 불가
@@ -425,6 +460,15 @@ public class PlayerController : MonoBehaviour
 
     private void TickAttackTimer()
     {
+        // 넉백 중에는 공격 취소
+        if (_isKnockedBack && _isAttacking)
+        {
+            _isAttacking = false;
+            _attackTimer = 0f;
+            _lastAttackDirection = Vector2.zero;
+            return;
+        }
+
         if (_isAttacking && _attackTimer > 0f)
         {
             _attackTimer -= Time.fixedDeltaTime;
@@ -432,6 +476,19 @@ public class PlayerController : MonoBehaviour
             {
                 _isAttacking = false;
                 _lastAttackDirection = Vector2.zero; // 공격 종료 시 방향 초기화
+            }
+        }
+    }
+
+    private void TickKnockbackTimer()
+    {
+        if (_knockbackTimer > 0f)
+        {
+            _knockbackTimer -= Time.fixedDeltaTime;
+            if (_knockbackTimer <= 0f)
+            {
+                _knockbackTimer = 0f;
+                _isKnockedBack = false;
             }
         }
     }
@@ -458,6 +515,13 @@ public class PlayerController : MonoBehaviour
         if (_isDead)
         {
             _state = PlayerState.Dead;
+            return;
+        }
+
+        // 넉백 상태는 사망 다음 우선순위
+        if (_isKnockedBack)
+        {
+            _state = PlayerState.Hit;
             return;
         }
 
@@ -503,6 +567,7 @@ public class PlayerController : MonoBehaviour
         _anim.SetBool("IsOnWall", _isOnWall);
         _anim.SetFloat("WallVerticalVel", _isOnWall ? Mathf.Abs(velocity.y) : 0f);
         _anim.SetBool("IsAttacking", _isAttacking);
+        _anim.SetBool("IsHit", _isKnockedBack);
         _anim.SetBool("IsDead", _isDead);
     }
 
@@ -675,14 +740,18 @@ public class PlayerController : MonoBehaviour
                 Enemy enemy = hitCollider.GetComponent<Enemy>();
                 if (enemy != null)
                 {
-                    enemy.TakeDamage(attackDamage);
+                    // 넉백 방향 계산 (플레이어에서 적으로)
+                    Vector2 knockbackDirection = toEnemy;
+                    
+                    // 기본 공격은 넉백 적용
+                    enemy.TakeDamage(attackDamage, knockbackDirection, attackKnockbackForce);
                     Debug.Log($"적에게 {attackDamage} 데미지를 입혔습니다!");
                 }
             }
         }
     }
 
-    public void TakeDamage(float damage)
+    public void TakeDamage(float damage, Vector2? knockbackDirection = null, float knockbackForce = -1f)
     {
         if (_isDead) return;
 
@@ -691,10 +760,54 @@ public class PlayerController : MonoBehaviour
 
         Debug.Log($"플레이어가 데미지를 받았습니다! 현재 체력: {currentHealth}/{maxHealth}");
 
+        // 넉백 적용 (방향이 있으면 적용, 힘은 전달되지 않았으면(-1f) 플레이어 기본값 사용)
+        if (knockbackDirection.HasValue)
+        {
+            float actualKnockbackForce = knockbackForce >= 0f ? knockbackForce : this.knockbackForce;
+            ApplyKnockback(knockbackDirection.Value, actualKnockbackForce);
+        }
+
         if (currentHealth <= 0f)
         {
             Die();
         }
+    }
+
+    private void ApplyKnockback(Vector2 direction, float force)
+    {
+        // 넉백 방향 정규화
+        Vector2 knockbackDir = direction.normalized;
+        
+        // 대시 중이면 대시 취소 및 좌우 속도 0으로 설정
+        if (_isDashing)
+        {
+            EndDash();
+            // 좌우 이동 속도를 0으로 설정
+            var velocity = _rb.linearVelocity;
+            velocity.x = 0f;
+            _rb.linearVelocity = velocity;
+        }
+
+        // 벽타기 중이면 벽타기 취소
+        if (_isOnWall)
+        {
+            ExitWall();
+        }
+
+        // 공격 중이면 공격 취소
+        if (_isAttacking)
+        {
+            _isAttacking = false;
+            _attackTimer = 0f;
+            _lastAttackDirection = Vector2.zero;
+        }
+
+        // 넉백 힘 적용 (AddForce 사용)
+        _rb.AddForce(knockbackDir * force, ForceMode2D.Impulse);
+
+        // 넉백 상태 설정
+        _isKnockedBack = true;
+        _knockbackTimer = knockbackDuration;
     }
 
     private void Die()

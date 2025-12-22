@@ -79,7 +79,7 @@ public class BoomerangSkill : WeaponSkill
         }
 
         // 부메랑 초기화
-        projectile.Initialize(direction, projectileSpeed, range, damage, enemyLayer, playerTransform, this);
+        projectile.Initialize(direction, projectileSpeed, range, damage, enemyLayer, playerTransform, this, knockbackForce);
         
         // 현재 부메랑 추적
         currentProjectile = projectile;

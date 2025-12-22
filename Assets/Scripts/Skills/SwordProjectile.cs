@@ -12,16 +12,18 @@ public class SwordProjectile : MonoBehaviour
     private float speed;
     private float maxDistance;
     private float damage;
+    private float knockbackForce;
     private LayerMask enemyLayer;
     private Vector2 startPosition;
     private HashSet<Enemy> hitEnemies = new HashSet<Enemy>(); // 이미 맞은 적 추적
 
-    public void Initialize(Vector2 dir, float spd, float maxDist, float dmg, LayerMask layer)
+    public void Initialize(Vector2 dir, float spd, float maxDist, float dmg, LayerMask layer, float knockback = 5f)
     {
         direction = dir.normalized;
         speed = spd;
         maxDistance = maxDist;
         damage = dmg;
+        knockbackForce = knockback;
         enemyLayer = layer;
         startPosition = transform.position;
     }
@@ -54,8 +56,11 @@ public class SwordProjectile : MonoBehaviour
                     return;
                 }
 
-                // 적에게 데미지 적용
-                enemy.TakeDamage(damage);
+                // 넉백 방향 계산 (투사체 이동 방향)
+                Vector2 knockbackDirection = direction;
+                
+                // 넉백 효과와 함께 데미지 적용
+                enemy.TakeDamage(damage, knockbackDirection, knockbackForce);
                 hitEnemies.Add(enemy);
             }
         }

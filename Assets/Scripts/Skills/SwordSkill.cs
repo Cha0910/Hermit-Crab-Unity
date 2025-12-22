@@ -45,6 +45,6 @@ public class SwordSkill : WeaponSkill
         }
 
         // 검기 초기화
-        projectile.Initialize(direction, projectileSpeed, range, damage, enemyLayer);
+        projectile.Initialize(direction, projectileSpeed, range, damage, enemyLayer, knockbackForce);
     }
 }

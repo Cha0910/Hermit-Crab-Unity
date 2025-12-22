@@ -14,6 +14,7 @@ public class WeaponItem : ScriptableObject
     [SerializeField] private float skillCooldown = 1f;
     [SerializeField] private float skillDamage = 10f;
     [SerializeField] private float skillRange = 5f;
+    [SerializeField] private float skillKnockbackForce = 5f; // 스킬 넉백 힘
 
     // 프로퍼티
     public string WeaponName => weaponName;
@@ -23,5 +24,6 @@ public class WeaponItem : ScriptableObject
     public float SkillCooldown => skillCooldown;
     public float SkillDamage => skillDamage;
     public float SkillRange => skillRange;
+    public float SkillKnockbackForce => skillKnockbackForce;
 }
 

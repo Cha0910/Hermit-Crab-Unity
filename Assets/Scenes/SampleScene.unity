@@ -499,10 +499,13 @@ MonoBehaviour:
   wallJumpHorizontalForce: 7
   maxHealth: 100
   currentHealth: 0
+  knockbackForce: 10
+  knockbackDuration: 0.3
   attackRange: 3
   attackDamage: 20
   attackAngle: 90
   attackCooldown: 0.3
+  attackKnockbackForce: 8
   enemyLayer:
     serializedVersion: 2
     m_Bits: 256
@@ -943,10 +946,13 @@ MonoBehaviour:
   maxHealth: 100
   currentHealth: 0
   detectionRange: 5
-  attackRange: 1.5
+  attackRange: 1
   attackDamage: 10
   attackCooldown: 1
+  knockbackResistance: 0
+  knockbackDuration: 0.3
   moveSpeed: 0
+  knockbackForce: 8
 --- !u!50 &799105560
 Rigidbody2D:
   serializedVersion: 5

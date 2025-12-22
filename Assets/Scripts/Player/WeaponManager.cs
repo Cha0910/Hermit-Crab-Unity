@@ -120,7 +120,8 @@ public class WeaponManager : MonoBehaviour
             playerTransform,
             currentWeapon.SkillCooldown,
             currentWeapon.SkillDamage,
-            currentWeapon.SkillRange
+            currentWeapon.SkillRange,
+            currentWeapon.SkillKnockbackForce
         );
     }
 

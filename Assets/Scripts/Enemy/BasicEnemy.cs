@@ -5,6 +5,8 @@ public class BasicEnemy : Enemy
 {
     [Header("Movement Settings")]
     [SerializeField] private float moveSpeed = 3f;
+    [Header("Attack Settings")]
+    [SerializeField] private float knockbackForce = 8f; // 플레이어 넉백 힘
     private SpriteRenderer spriteRenderer;
     private bool facingRight = true;
     protected override void Awake()
@@ -32,6 +34,7 @@ public class BasicEnemy : Enemy
     protected override void Move()
     {
         if (playerTransform == null) return;
+        if (isKnockedBack) return; // 넉백 중에는 이동 중지
         if (isPlayerInAttackRange) return; // 공격 범위 내에서는 이동 중지
 
         Vector2 direction = (playerTransform.position - transform.position).normalized;
@@ -62,7 +65,11 @@ public class BasicEnemy : Enemy
         PlayerController player = playerTransform.GetComponent<PlayerController>();
         if (player != null && !player.IsDead())
         {
-            player.TakeDamage(attackDamage);
+            // 적의 위치에서 플레이어 위치로의 방향 계산
+            Vector2 knockbackDirection = (playerTransform.position - transform.position).normalized;
+            
+            // 넉백 효과와 함께 데미지 적용
+            player.TakeDamage(attackDamage, knockbackDirection, knockbackForce);
         }
 
         // 공격 애니메이션 트리거 

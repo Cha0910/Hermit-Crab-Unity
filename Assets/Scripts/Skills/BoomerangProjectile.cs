@@ -12,6 +12,7 @@ public class BoomerangProjectile : MonoBehaviour
     private float speed;
     private float maxDistance;
     private float damage;
+    private float knockbackForce;
     private LayerMask enemyLayer;
     private Vector2 startPosition;
     private Transform playerTransform;
@@ -22,12 +23,13 @@ public class BoomerangProjectile : MonoBehaviour
     private float returnDistanceThreshold = 0.5f; // 플레이어에게 돌아왔을 때 사라지는 거리
     private BoomerangSkill boomerangSkill; // BoomerangSkill 참조
 
-    public void Initialize(Vector2 dir, float spd, float maxDist, float dmg, LayerMask layer, Transform player, BoomerangSkill skill)
+    public void Initialize(Vector2 dir, float spd, float maxDist, float dmg, LayerMask layer, Transform player, BoomerangSkill skill, float knockback = 5f)
     {
         direction = dir.normalized;
         speed = spd;
         maxDistance = maxDist;
         damage = dmg;
+        knockbackForce = knockback;
         enemyLayer = layer;
         startPosition = transform.position;
         playerTransform = player;
@@ -118,8 +120,11 @@ public class BoomerangProjectile : MonoBehaviour
                     return;
                 }
 
-                // 적에게 데미지 적용
-                enemy.TakeDamage(damage);
+                // 넉백 방향 계산 (나갈 때는 direction, 돌아올 때는 returnDirection)
+                Vector2 knockbackDirection = isReturning ? returnDirection : direction;
+                
+                // 넉백 효과와 함께 데미지 적용
+                enemy.TakeDamage(damage, knockbackDirection, knockbackForce);
                 hitEnemies.Add(enemy);
             }
         }

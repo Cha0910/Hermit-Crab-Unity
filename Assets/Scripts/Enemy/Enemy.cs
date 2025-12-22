@@ -16,12 +16,19 @@ public abstract class Enemy : MonoBehaviour
     [SerializeField] protected float attackDamage = 10f;
     [SerializeField] protected float attackCooldown = 1f;
 
+    [Header("Knockback Settings")]
+    [Range(0f, 10f)]
+    [SerializeField] protected float knockbackResistance = 0f; // 넉백 저항 (0~10 퍼센트)
+    [SerializeField] protected float knockbackDuration = 0.3f; // 넉백 지속 시간
+
     protected Rigidbody2D rb;
     protected Transform playerTransform;
     protected float attackTimer;
     protected bool isPlayerInRange;
     protected bool isPlayerInAttackRange;
     protected bool isDead;
+    protected bool isKnockedBack;
+    protected float knockbackTimer;
 
     protected virtual void Awake()
     {
@@ -29,6 +36,8 @@ public abstract class Enemy : MonoBehaviour
         currentHealth = maxHealth;
         attackTimer = 0f;
         isDead = false;
+        isKnockedBack = false;
+        knockbackTimer = 0f;
     }
 
     protected virtual void Start()
@@ -59,6 +68,9 @@ public abstract class Enemy : MonoBehaviour
         {
             attackTimer -= Time.deltaTime;
         }
+
+        // 넉백 타이머 업데이트
+        TickKnockbackTimer();
 
         // 플레이어 감지
         DetectPlayer();
@@ -101,16 +113,52 @@ public abstract class Enemy : MonoBehaviour
         // 자식 클래스에서 구현
     }
 
-    public virtual void TakeDamage(float damage)
+    public virtual void TakeDamage(float damage, Vector2? knockbackDirection = null, float knockbackForce = 0f)
     {
         if (isDead) return;
 
         currentHealth -= damage;
         currentHealth = Mathf.Max(0f, currentHealth);
 
+        // 넉백 적용
+        if (knockbackDirection.HasValue && knockbackForce > 0f)
+        {
+            ApplyKnockback(knockbackDirection.Value, knockbackForce);
+        }
+
         if (currentHealth <= 0f)
         {
             Die();
+        }
+    }
+
+    protected virtual void ApplyKnockback(Vector2 direction, float force)
+    {
+        // 넉백 저항 적용 (0~10 퍼센트)
+        float resistanceMultiplier = 1f - (knockbackResistance / 100f);
+        float actualForce = force * resistanceMultiplier;
+
+        // 넉백 방향 정규화
+        Vector2 knockbackDir = direction.normalized;
+
+        // AddForce로 넉백 적용
+        rb.AddForce(knockbackDir * actualForce, ForceMode2D.Impulse);
+
+        // 넉백 상태 설정
+        isKnockedBack = true;
+        knockbackTimer = knockbackDuration;
+    }
+
+    protected virtual void TickKnockbackTimer()
+    {
+        if (knockbackTimer > 0f)
+        {
+            knockbackTimer -= Time.deltaTime;
+            if (knockbackTimer <= 0f)
+            {
+                knockbackTimer = 0f;
+                isKnockedBack = false;
+            }
         }
     }
 
